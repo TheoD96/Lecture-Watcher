@@ -1,0 +1,17 @@
+{
+  "name": "lecture-watcher",
+  "version": "0.1.0",
+  "description": "Watch and listen to Echo360 (and other) lecture recordings: transcribes audio, captures each slide, and turns it into study notes.",
+  "author": {
+    "name": "Theo Davies"
+  },
+  "repository": "https://github.com/theod96/lecture-watcher",
+  "keywords": [
+    "lecture",
+    "echo360",
+    "transcription",
+    "study",
+    "notes"
+  ],
+  "license": "MIT"
+}

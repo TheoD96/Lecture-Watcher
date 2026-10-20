@@ -1,0 +1,4 @@
+lectures/
+__pycache__/
+*.pyc
+.venv/

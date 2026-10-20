@@ -1,0 +1,16 @@
+{
+  "name": "lecture-watcher",
+  "owner": {
+    "name": "Theo Davies"
+  },
+  "metadata": {
+    "description": "Claude Code skill for turning lecture recordings into study notes."
+  },
+  "plugins": [
+    {
+      "name": "lecture-watcher",
+      "source": "./",
+      "description": "Watch and listen to Echo360 (and other) lecture recordings and turn them into study notes."
+    }
+  ]
+}
