@@ -1,6 +1,6 @@
 ---
 name: watch-lecture
-description: Watch and listen to a recorded lecture (Echo360, Panopto, YouTube, Zoom recording, or any local video/audio file) by transcribing the audio and pulling out each slide as an image, then produce study notes, summaries, or answer questions about it. Use when the user shares a lecture recording, an Echo360 link or .m3u8 stream, a lecture caption/transcript file, or asks to "watch", "summarise", or "make notes from" a lecture.
+description: Find, watch and listen to recorded lectures (Echo360, Panopto, YouTube, Zoom, or any local video/audio file). Can browse the user's LMS (e.g. UC Learn) and Echo360 in their browser to find a recording, then transcribes the audio and pulls out each slide as an image to produce study notes, summaries, quizzes, or answer questions. Use when the user names a lecture ("watch COSC121 week 4 lecture 2", "catch me up on yesterday's lecture"), shares a lecture recording, Echo360 link, .m3u8 stream or caption file, or asks to "watch", "summarise", or "make notes from" a lecture.
 ---
 
 # Watch Lecture
@@ -12,7 +12,12 @@ so each slide sits next to what the lecturer said while it was up.
 
 ## 1. Get the recording
 
-Work out what the user gave you:
+If the user **named** a lecture instead of giving a file/URL (e.g. "watch COSC121
+week 4", "catch me up on yesterday's INFO213 lecture"), find it in their browser:
+follow `references/finding-recordings.md`. It opens Learn, goes to the course's
+Echo360 page, and grabs the captions, download, or stream URL.
+
+Otherwise, work out what the user gave you:
 
 | Input | What to do |
 |---|---|
@@ -21,11 +26,11 @@ Work out what the user gave you:
 | Echo360 `.m3u8` stream URL | Pass the URL. See "Echo360 streams" below for how to get it |
 | Echo360 caption file (`.vtt`/`.srt`) | Pass with `--captions FILE`. Skips Whisper, much faster. Still pass the video too if you have it, for slides |
 | YouTube / other public page | Pass the URL, yt-dlp handles it |
-| Plain Echo360 page link only | You can't log in to Echo360 yourself. Ask the user for a download, the `.m3u8`, or a cookies file (see below) |
+| Echo360 / Learn page link | Open it in the browser and follow `references/finding-recordings.md` from step 5. No browser tool? Ask for a download, the `.m3u8`, or use cookies (below) |
 
 ### Echo360 streams
 
-If downloads are disabled, the user can grab the stream URL:
+If there's no browser tool and downloads are disabled, the user can grab the stream URL by hand:
 
 1. Open the lecture in Echo360 in Chrome/Firefox, open DevTools → **Network** tab
 2. Filter for `m3u8`, press play
