@@ -1,6 +1,6 @@
 {
   "name": "lecture-watcher",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Watch and listen to Echo360 (and other) lecture recordings: transcribes audio, captures each slide, and turns it into study notes.",
   "author": {
     "name": "Theo Davies"

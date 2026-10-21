@@ -47,9 +47,17 @@ python3 "${CLAUDE_PLUGIN_ROOT:-.}/skills/watch-lecture/scripts/process_lecture.p
 If the script isn't found at that path, locate it with
 `find ~ -path '*watch-lecture/scripts/process_lecture.py' 2>/dev/null | head -1`.
 
-First run: if it errors about `faster-whisper`, install deps with
-`pip install -r <skill dir>/scripts/requirements.txt` (needs `ffmpeg` on PATH too:
-`brew install ffmpeg` / `sudo apt install ffmpeg` / `winget install ffmpeg`).
+First run: if it errors about `faster-whisper` or ffmpeg, install deps with
+`pip install -r <skill dir>/scripts/requirements.txt`. That includes
+`imageio-ffmpeg`, which bundles an ffmpeg binary, so a system ffmpeg is optional.
+If pip refuses with "externally managed environment", retry with
+`pip install --user --break-system-packages -r ...` or use a venv.
+
+In a sandbox (e.g. Cowork): the recording must be in a folder the user has
+shared with you. Browser cookies aren't reachable, so ask the user to download
+the video or captions from Echo360 first. If pip or the Whisper model download
+is blocked by the network, tell the user and fall back to `--captions` (or
+reading the caption file and slides PDF directly) instead.
 
 Useful flags:
 - `--captions FILE` use existing captions instead of transcribing

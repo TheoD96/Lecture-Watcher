@@ -38,9 +38,20 @@ def run(cmd, **kw):
     return subprocess.run(cmd, check=True, **kw)
 
 
-def require(binary):
-    if not shutil.which(binary):
-        sys.exit(f"error: '{binary}' not found on PATH. Install it first.")
+def find_ffmpeg():
+    """System ffmpeg if there is one, else the binary bundled with imageio-ffmpeg
+    (pip installable, handy in sandboxes like Cowork where you can't brew/apt)."""
+    if shutil.which("ffmpeg"):
+        return "ffmpeg"
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        sys.exit("error: ffmpeg not found. Install it (brew install ffmpeg) "
+                 "or run: pip install imageio-ffmpeg")
+
+
+FFMPEG = None
 
 
 # ---------------------------------------------------------------- fetching
@@ -60,6 +71,7 @@ def fetch(source, out_dir, cookies=None, browser=None):
 
     if shutil.which("yt-dlp"):
         cmd = ["yt-dlp", "-o", str(dest), "--merge-output-format", "mp4",
+               "--ffmpeg-location", FFMPEG,
                "-f", "bv*+ba/b", "--no-playlist"]
         if cookies:
             cmd += ["--cookies", cookies]
@@ -72,29 +84,19 @@ def fetch(source, out_dir, cookies=None, browser=None):
         except subprocess.CalledProcessError:
             log("yt-dlp failed, falling back to ffmpeg")
 
-    require("ffmpeg")
     log("downloading with ffmpeg...")
-    run(["ffmpeg", "-y", "-loglevel", "error", "-stats", "-i", source,
+    run([FFMPEG, "-y", "-loglevel", "error", "-stats", "-i", source,
          "-c", "copy", str(dest)])
     return dest
 
 
-def has_video(path):
-    out = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "v", "-show_entries",
-         "stream=codec_type", "-of", "csv=p=0", str(path)],
-        capture_output=True, text=True).stdout
-    return "video" in out
-
-
-def duration(path):
-    out = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "csv=p=0", str(path)], capture_output=True, text=True).stdout
-    try:
-        return float(out.strip())
-    except ValueError:
-        return 0.0
+def probe(path):
+    """Return (duration_secs, has_video). Parses `ffmpeg -i` so ffprobe isn't needed."""
+    err = subprocess.run([FFMPEG, "-hide_banner", "-i", str(path)],
+                         capture_output=True, text=True).stderr
+    m = re.search(r"Duration: (\d+):(\d+):([\d.]+)", err)
+    dur = int(m[1]) * 3600 + int(m[2]) * 60 + float(m[3]) if m else 0.0
+    return dur, bool(re.search(r"Stream #.*: Video:", err))
 
 
 # ---------------------------------------------------------------- transcript
@@ -135,7 +137,7 @@ def transcribe(media, out_dir, model_size, language):
     audio = out_dir / "audio.wav"
     if not audio.exists():
         log("extracting audio...")
-        run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(media),
+        run([FFMPEG, "-y", "-loglevel", "error", "-i", str(media),
              "-vn", "-ac", "1", "-ar", "16000", str(audio)])
 
     # decode the wav ourselves so faster-whisper never touches PyAV,
@@ -193,7 +195,7 @@ def extract_frames(media, out_dir, threshold, min_gap, max_frames, width):
     vf = (f"select='eq(n\\,0)+gt(scene\\,{threshold})',"
           f"showinfo,scale={width}:-2")
     proc = subprocess.run(
-        ["ffmpeg", "-y", "-hide_banner", "-i", str(media), "-vf", vf,
+        [FFMPEG, "-y", "-hide_banner", "-i", str(media), "-vf", vf,
          "-fps_mode", "vfr", "-q:v", "3", str(tmp / "%05d.jpg")],
         capture_output=True, text=True)
     if proc.returncode != 0:
@@ -297,8 +299,8 @@ def main():
     ap.add_argument("--no-transcript", action="store_true")
     args = ap.parse_args()
 
-    require("ffmpeg")
-    require("ffprobe")
+    global FFMPEG
+    FFMPEG = find_ffmpeg()
 
     name = args.title or Path(args.source.split("?")[0]).stem or "lecture"
     slug = re.sub(r"[^\w-]+", "-", name).strip("-").lower() or "lecture"
@@ -306,7 +308,7 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     media = fetch(args.source, out_dir, args.cookies, args.browser)
-    total = duration(media)
+    total, video = probe(media)
     log(f"source: {media} ({fmt_ts(total)})")
 
     segs = []
@@ -319,7 +321,7 @@ def main():
         write_transcript(segs, out_dir)
 
     frames = []
-    if not args.no_frames and has_video(media):
+    if not args.no_frames and video:
         frames = extract_frames(media, out_dir, args.threshold, args.min_gap,
                                 args.max_frames, args.width)
 

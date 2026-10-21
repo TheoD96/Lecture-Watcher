@@ -28,6 +28,10 @@ Then in Claude Code:
 
 Or just copy `skills/watch-lecture` into `~/.claude/skills/` to use it as a plain skill.
 
+**Cowork:** install `dist/lecture-watcher.plugin` from the Claude desktop app. Download the
+lecture (or its captions) into a folder first and share that folder with Cowork. System ffmpeg
+is optional, the pip requirements include a bundled one.
+
 ## Use
 
 Just ask Claude:
