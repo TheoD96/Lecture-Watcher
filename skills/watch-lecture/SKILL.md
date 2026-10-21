@@ -65,17 +65,25 @@ is blocked by the network, tell the user and fall back to `--captions` (or
 reading the caption file and slides PDF directly) instead.
 
 Useful flags:
-- `--captions FILE` use existing captions instead of transcribing
-- `--model tiny|base|small|medium|large-v3` (default `small`). `small` is a good
-  balance. Go `medium` for heavy accents or technical jargon if the user has time/a GPU.
-  `tiny` for a quick first pass. A 50 min lecture on `small` takes roughly 5-15 min on a laptop CPU
+- `--captions FILE` use existing captions instead of transcribing. By far the
+  fastest option (seconds, not minutes), so always look for Echo360 captions first
+- `--backend auto|mlx|faster-whisper`. `auto` uses MLX on the GPU on Apple Silicon
+  Macs when `mlx-whisper` is installed (the requirements file installs it there),
+  otherwise batched faster-whisper on the CPU. If the script prints a tip about
+  mlx-whisper, install it: it's several times faster on M-series Macs
+- `--model tiny|base|small|medium|large-v3|turbo`. Default is `turbo` on MLX
+  (fast and accurate) and `small` on CPU. On CPU go `medium` for heavy accents or
+  jargon if the user has time, `tiny` for a quick first pass
 - `--threshold 0.12` slide-change sensitivity. Raise (0.2-0.3) if there are too many
   near-duplicate frames (e.g. lecturer cam in shot), lower (0.06) if slides are being missed
 - `--min-gap 8` minimum seconds between frames
 - `--no-frames` audio-only lectures or when slides were shared separately
 
-Transcription is slow, so run it in the background for long recordings and tell
-the user roughly how long. Output dir is reused, so a re-run after a failure
+Slide detection and transcription run in parallel. Transcription is still the
+slow part without captions, so run long recordings in the background and tell the
+user roughly how long (CPU `small`: very roughly a quarter to half the lecture's
+length; MLX on Apple Silicon: a few minutes for an hour). For several lectures,
+run them one after another rather than in parallel, each one already uses every core. Output dir is reused, so a re-run after a failure
 won't re-download.
 
 ## 3. Watch it
