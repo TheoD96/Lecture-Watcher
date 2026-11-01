@@ -40,7 +40,9 @@ If there's no browser tool and downloads are disabled, the user can grab the str
 
 If the URL needs the login session, use `--cookies-from-browser chrome` (works
 when Claude Code runs on the user's own machine) or `--cookies cookies.txt`
-exported with a "Get cookies.txt" browser extension.
+exported with a "Get cookies.txt" browser extension. On Windows, Chrome's cookies
+usually can't be read (app-bound encryption), so use `--cookies-from-browser firefox`
+or a `cookies.txt` there.
 
 ## 2. Process it
 
@@ -49,7 +51,8 @@ python3 "${CLAUDE_PLUGIN_ROOT:-.}/skills/watch-lecture/scripts/process_lecture.p
   --title "COSC101 Week 3 Lecture 1" -o lectures/cosc101-w3l1
 ```
 
-If the script isn't found at that path, locate it with
+On Windows, if `python3` isn't found or opens the Microsoft Store, use `py` (or
+`python`) instead. If the script isn't found at that path, locate it with
 `find ~ -path '*watch-lecture/scripts/process_lecture.py' 2>/dev/null | head -1`.
 
 First run: if it errors about `faster-whisper` or ffmpeg, install deps with
@@ -77,6 +80,7 @@ Useful flags:
 - `--threshold 0.12` slide-change sensitivity. Raise (0.2-0.3) if there are too many
   near-duplicate frames (e.g. lecturer cam in shot), lower (0.06) if slides are being missed
 - `--min-gap 8` minimum seconds between frames
+- `--device cpu` if faster-whisper crashes about `cudnn`/`cublas` (NVIDIA GPU without the CUDA libs, mostly Windows)
 - `--no-frames` audio-only lectures or when slides were shared separately
 
 Slide detection and transcription run in parallel. Transcription is still the

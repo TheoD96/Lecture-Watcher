@@ -57,6 +57,16 @@ def find_ffmpeg():
 FFMPEG = None
 
 
+def find_ytdlp():
+    """yt-dlp as a module of this python if installed, so it works even when pip's
+    Scripts/bin dir isn't on PATH (common on Windows and with pip --user)."""
+    try:
+        import yt_dlp  # noqa: F401
+        return [sys.executable, "-m", "yt_dlp"]
+    except ImportError:
+        return ["yt-dlp"] if shutil.which("yt-dlp") else None
+
+
 # ---------------------------------------------------------------- fetching
 
 def fetch(source, out_dir, cookies=None, browser=None):
@@ -72,8 +82,9 @@ def fetch(source, out_dir, cookies=None, browser=None):
         log(f"reusing {dest}")
         return dest
 
-    if shutil.which("yt-dlp"):
-        cmd = ["yt-dlp", "-o", str(dest), "--merge-output-format", "mp4",
+    ytdlp = find_ytdlp()
+    if ytdlp:
+        cmd = ytdlp + ["-o", str(dest), "--merge-output-format", "mp4",
                "-N", "8",  # download HLS fragments 8 at a time
                "--ffmpeg-location", FFMPEG,
                "-f", "bv*+ba/b", "--no-playlist"]
@@ -164,12 +175,12 @@ def load_audio(media, out_dir):
     return pcm.astype(np.float32) / 32768.0
 
 
-def transcribe(media, out_dir, model, language, backend):
+def transcribe(media, out_dir, model, language, backend, device="auto"):
     samples = load_audio(media, out_dir)
     backend = pick_backend(backend)
     if backend == "mlx":
         return _transcribe_mlx(samples, model or "turbo", language)
-    return _transcribe_fw(samples, model or "small", language)
+    return _transcribe_fw(samples, model or "small", language, device)
 
 
 def _transcribe_mlx(samples, model, language):
@@ -182,7 +193,7 @@ def _transcribe_mlx(samples, model, language):
             for s in res["segments"]]
 
 
-def _transcribe_fw(samples, model, language):
+def _transcribe_fw(samples, model, language, device="auto"):
     try:
         from faster_whisper import BatchedInferencePipeline, WhisperModel
     except ImportError:
@@ -191,7 +202,7 @@ def _transcribe_fw(samples, model, language):
                  "or pass --captions with Echo360's caption file.")
 
     log(f"transcribing with whisper '{model}' (this is the slow bit)...")
-    wm = WhisperModel(model, device="auto", compute_type="auto",
+    wm = WhisperModel(model, device=device, compute_type="auto",
                       cpu_threads=os.cpu_count() or 4)
     # batched mode transcribes chunks in parallel, ~2-4x faster than sequential
     seg_iter, info = BatchedInferencePipeline(wm).transcribe(
@@ -219,8 +230,8 @@ def write_transcript(segs, out_dir, para_secs=60):
             buf, start = [], None
     if buf:
         lines.append(f"**[{fmt_ts(start)}]** {' '.join(buf)}\n")
-    (out_dir / "transcript.md").write_text("# Transcript\n\n" + "\n".join(lines))
-    (out_dir / "segments.json").write_text(json.dumps(segs, indent=1))
+    (out_dir / "transcript.md").write_text("# Transcript\n\n" + "\n".join(lines), encoding="utf-8")
+    (out_dir / "segments.json").write_text(json.dumps(segs, indent=1), encoding="utf-8")
 
 
 # ---------------------------------------------------------------- frames
@@ -327,7 +338,7 @@ def write_index(segs, frames, out_dir, title, total):
             out.append(f"## [{fmt_ts(lo)} - {end}] Frame {i + 1}\n")
             out.append(f"![]({f['file']})\n")
             out.append((" ".join(said) or "_(nothing said)_") + "\n")
-    (out_dir / "index.md").write_text("\n".join(out))
+    (out_dir / "index.md").write_text("\n".join(out), encoding="utf-8")
 
 
 # ---------------------------------------------------------------- main
@@ -347,6 +358,8 @@ def main():
                          "(default: turbo with MLX, small otherwise)")
     ap.add_argument("--backend", default="auto", choices=["auto", "mlx", "faster-whisper"],
                     help="auto uses MLX (GPU) on Apple Silicon if installed")
+    ap.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"],
+                    help="faster-whisper device; use cpu if CUDA/cuDNN errors (default auto)")
     ap.add_argument("--language", default="en")
     ap.add_argument("--threshold", type=float, default=0.12,
                     help="scene change sensitivity, lower = more frames (default 0.12)")
@@ -381,7 +394,8 @@ def main():
             segs = parse_captions(args.captions)
             log(f"loaded {len(segs)} caption cues")
         elif not args.no_transcript:
-            segs = transcribe(media, out_dir, args.model, args.language, args.backend)
+            segs = transcribe(media, out_dir, args.model, args.language, args.backend,
+                              args.device)
         if segs:
             write_transcript(segs, out_dir)
         frames = frames_job.result() if frames_job else []

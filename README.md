@@ -5,19 +5,65 @@ YouTube, Zoom, or any local video). It transcribes the audio with Whisper, grabs
 frame every time the slide changes, lines the two up, and then Claude reads the lot
 and writes study notes, summaries, quizzes, or answers questions about the lecture.
 
-## Install
+## Requirements
 
-Needs `ffmpeg` and Python 3.9+.
+### Everywhere
+
+| Need | Why | Notes |
+|---|---|---|
+| Claude Code (CLI, desktop or IDE extension) | Runs the skill | Or Cowork, see below |
+| Python 3.9+ with pip | Runs `process_lecture.py` | |
+| Python packages from `requirements.txt` | `faster-whisper` (transcription), `numpy`, `Pillow` (slide dedupe), `yt-dlp` (downloads), `imageio-ffmpeg` (bundled ffmpeg), `mlx-whisper` (Apple Silicon only) | |
+| ffmpeg 5.1+ | Audio extraction, slide detection, HLS downloads | Optional: `imageio-ffmpeg` bundles one |
+| Internet on first run | Whisper model download from Hugging Face (~500 MB for `small`, ~1.6 GB for `turbo`) | Cached after that. Not needed with `--captions` |
+| Disk space | `source.mp4` for a 1 h lecture is ~0.3-1 GB | Delete it once notes are done |
+| Claude in Chrome extension (optional) | Lets Claude find a lecture on Learn/Echo360 by name | Without it, give Claude the file, `.m3u8` URL or captions |
+
+### Mac
+
+1. Python 3.9+: the one from python.org or `brew install python` (the Xcode Command Line Tools `python3` also works).
+2. ffmpeg (optional): `brew install ffmpeg`
+3. Python deps:
+   ```bash
+   python3 -m pip install -r skills/watch-lecture/scripts/requirements.txt
+   ```
+   On Homebrew Python, pip may refuse with "externally managed environment". Add
+   `--user --break-system-packages`, or use a venv.
+4. Apple Silicon (M1 and later): `mlx-whisper` installs automatically and transcribes on the GPU,
+   roughly a few minutes per hour of lecture. Intel Macs use faster-whisper on the CPU.
+5. `--cookies-from-browser chrome|safari` works, but macOS will ask for Keychain
+   access (Chrome) or Full Disk Access for the terminal (Safari) the first time.
+
+### Windows
+
+1. **Git for Windows** ([git-scm.com](https://git-scm.com/download/win)). Claude Code on Windows runs
+   shell commands through Git Bash, and the skill's commands are written for bash.
+2. Python 3.9+: `winget install Python.Python.3.12` (or python.org, tick *Add python.exe to PATH*).
+   Turn off the Microsoft Store `python3` alias in *Settings → Apps → Advanced app settings →
+   App execution aliases* if `python3` opens the Store. Otherwise use `py`/`python` in place of `python3`.
+3. ffmpeg (optional): `winget install --id Gyan.FFmpeg`, then open a new terminal so it's on PATH.
+4. Python deps:
+   ```powershell
+   py -m pip install -r skills/watch-lecture/scripts/requirements.txt
+   ```
+   You may get a Hugging Face warning about symlinks on the first model download. It's harmless.
+   Turning on Developer Mode silences it and saves disk space.
+5. Transcription runs on the CPU (`small` model: very roughly a quarter to half of the
+   lecture's length). With an NVIDIA GPU, faster-whisper uses CUDA automatically, but only if
+   CUDA 12 cuBLAS and cuDNN 9 are installed (`pip install nvidia-cublas-cu12 nvidia-cudnn-cu12`).
+   If it errors about `cudnn`/`cublas`, install those or pass `--device cpu`.
+6. `--cookies-from-browser chrome` usually **fails on Windows**: Chrome 127+ encrypts cookies so
+   other apps can't read them. Use `--cookies-from-browser firefox`, or export a `cookies.txt`
+   with a "Get cookies.txt" extension and pass `--cookies cookies.txt`.
+
+### Check it works
 
 ```bash
-# ffmpeg
-brew install ffmpeg            # mac
-winget install ffmpeg          # windows
-sudo apt install ffmpeg        # linux
-
-# python deps
-pip install -r skills/watch-lecture/scripts/requirements.txt
+python3 skills/watch-lecture/scripts/process_lecture.py -h   # Windows: py ...
+python3 -c "import faster_whisper, yt_dlp, imageio_ffmpeg, PIL; print('ok')"
 ```
+
+## Install the plugin
 
 Then in Claude Code:
 
@@ -54,7 +100,7 @@ Just ask Claude:
 ## Running the script directly
 
 ```bash
-python3 skills/watch-lecture/scripts/process_lecture.py lecture.mp4 --title "INFO213 Week 4"
+python3 skills/watch-lecture/scripts/process_lecture.py lecture.mp4 --title "INFO213 Week 4"   # Windows: py ...
 ```
 
 Outputs to `lectures/<title>/`: `index.md` (slides + what was said), `transcript.md`,
