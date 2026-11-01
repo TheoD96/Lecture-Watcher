@@ -36,6 +36,8 @@ and writes study notes, summaries, quizzes, or answers questions about the lectu
 
 ### Windows
 
+**New to this? Follow the full step-by-step guide: [WINDOWS.md](WINDOWS.md).**
+
 1. **Git for Windows** ([git-scm.com](https://git-scm.com/download/win)). Claude Code on Windows runs
    shell commands through Git Bash, and the skill's commands are written for bash.
 2. Python 3.9+: `winget install Python.Python.3.12` (or python.org, tick *Add python.exe to PATH*).
